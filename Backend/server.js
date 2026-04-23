@@ -21,45 +21,33 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 const app = express();
 
 // =====================
-// FIXED CORS CONFIGURATION
+// UPDATED CORS CONFIGURATION (FIXED)
 // =====================
-const allowedOrigins = new Set([
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://localhost:5500',
-  'http://localhost:5501',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5500',
-  'http://127.0.0.1:5501'
-]);
-
 app.use(cors({
-  origin(origin, callback) {
-    // Allow server-to-server calls, Postman, and local file:// pages.
-    if (!origin || origin === 'null') {
-      return callback(null, true);
-    }
-    if (allowedOrigins.has(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
-  credentials: true
+    origin: '*', // Allows requests from Vercel, Localhost, and any other source
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
 
 app.use(express.json());
 
 // MongoDB connection
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-  }
+    try {
+        const conn = await mongoose.connect(process.env.MONGODB_URI);
+        console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    } catch (error) {
+        console.error('❌ MongoDB connection error:', error);
+        process.exit(1); // Exit if connection fails
+    }
 };
 connectDB();
+
+// Home Route (To check if backend is alive in browser)
+app.get('/', (req, res) => {
+    res.send('Soul Space Backend is Running Successfully!');
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -70,7 +58,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/mental-health', mentalHealthRoutes);
 app.use('/api/appointments', appointmentRoutes);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });

@@ -3,7 +3,7 @@ class MindSpaceChatbot {
     constructor() {
         this.isOpen = false;
         this.messages = [];
-        this.apiConfig = window.ENV_CONFIG || { backendApiUrl: window.ENV_API_URL || 'http://localhost:5000' };
+        this.apiConfig = window.ENV_CONFIG || { backendApiUrl: window.ENV_API_URL || 'https://soulspace-backend-46bh.onrender.com' };
         this.init();
         this.setupEventListeners();
         this.addWelcomeMessage();

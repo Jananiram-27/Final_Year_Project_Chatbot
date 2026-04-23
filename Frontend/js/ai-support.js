@@ -20,8 +20,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // API Configuration
     const apiConfig = window.ENV_CONFIG || {
-        backendApiUrl: 'http://localhost:5000',
-        mlServiceUrl: 'http://localhost:5055/predict_emotion'
+        backendApiUrl: 'https://soulspace-backend-46bh.onrender.com',
+        mlServiceUrl: 'https://soulspace-backend-46bh.onrender.com/api/mood/predict_emotion', 
+// (Replace with your actual route path)
     };
     
     // DOM Elements

@@ -1440,7 +1440,7 @@ function getApiUrl() {
         return window.ENV_API_URL;
     }
     // Fallback for local development
-    return 'http://localhost:5000';
+    return 'https://soulspace-backend-46bh.onrender.com';
 }
 
 // Connect login and register buttons to dialogs

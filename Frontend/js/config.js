@@ -13,8 +13,9 @@
         console.log('Running in production mode');
     } else {
         // LOCAL DEVELOPMENT - ALIGNED WITH TERMINAL LOGS
-        backendUrl = 'http://localhost:5000';   // Matches your Node.js server log
-        mlUrl = 'http://localhost:5055/predict_emotion';  // Matches your main.py log
+        backendUrl = 'https://soulspace-backend-46bh.onrender.com';   // Matches your Node.js server log
+        mlServiceUrl: 'https://soulspace-backend-46bh.onrender.com/api/mood/predict_emotion'; 
+// (Replace with your actual route path);  // Matches your main.py log
         console.log('Running in development mode');
     }
 
