@@ -8,8 +8,8 @@
     let mlUrl;
 
     if (isProduction) {
-        backendUrl = 'https://mindspace-9a0l.onrender.com';
-        mlUrl = 'https://mindspace-9a0l.onrender.com/predict_emotion';
+        backendUrl = 'https://soulspace-backend-46bh.onrender.com';
+        mlUrl = 'https://soulspace-backend-46bh.onrender.com/predict_emotion';
         console.log('Running in production mode');
     } else {
         // LOCAL DEVELOPMENT - ALIGNED WITH TERMINAL LOGS
