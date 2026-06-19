@@ -1,32 +1,35 @@
 // Configuration for API URLs - MindSpace
 (function() {
-
-    const isProduction = window.location.hostname !== 'localhost' &&
+    // Determine if we are running in production or development
+    // Using simple boolean here for local testing
+    const isProduction = window.location.hostname !== 'localhost' && 
                          !window.location.hostname.includes('127.0.0.1');
-
+                         
+    const environment = isProduction ? 'production' : 'development';
+    
     let backendUrl;
     let mlUrl;
-
+    
     if (isProduction) {
         backendUrl = 'https://soulspace-backend-46bh.onrender.com';
-        mlUrl = 'https://soulspace-backend-46bh.onrender.com/predict_emotion';
+        mlUrl = 'https://soulspace-backend-46bh.onrender.com/api/mood/analyze';
         console.log('Running in production mode');
     } else {
-        // LOCAL DEVELOPMENT - ALIGNED WITH TERMINAL LOGS
-        backendUrl = 'https://soulspace-backend-46bh.onrender.com';   // Matches your Node.js server log
-        mlServiceUrl: 'https://soulspace-backend-46bh.onrender.com/api/mood/predict_emotion'; 
-// (Replace with your actual route path);  // Matches your main.py log
+        // LOCAL DEVELOPMENT URLs
+        backendUrl = 'http://localhost:5000';
+        mlUrl = 'http://localhost:5000/api/mood/analyze';
         console.log('Running in development mode');
     }
 
+    // Set global variables for other files to use
     window.ENV_API_URL = backendUrl;
-
     window.ENV_CONFIG = {
+        environment: environment,
         backendApiUrl: backendUrl,
         mlServiceUrl: mlUrl
     };
-
+    
+    console.log('Environment:', environment);
     console.log('Backend URL:', backendUrl);
     console.log('ML Service URL:', mlUrl);
-
 })();

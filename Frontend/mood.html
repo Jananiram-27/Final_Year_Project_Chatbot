@@ -110,12 +110,9 @@
                         <button id="captureBtn" class="btn-primary" style="margin-top:20px;">Check Mood Now</button>
                     </div>
                     <div class="ai-mood-detect-right">
-                        <div class="video-container" style="position:relative;">
-                            <video id="video" autoplay playsinline></video>
-                            <canvas id="canvas"></canvas>
-                            <div class="countdown" id="countdown"></div>
+                        <div id="result" class="mood-result-panel">
+                            <p class="mood-result-placeholder">Your detected mood will appear here after capture.</p>
                         </div>
-                        <div id="result"></div>
                     </div>
                 </div>
             </div>
@@ -204,8 +201,9 @@
                     <h3>How to use AI Mood Detection:</h3>
                     <ul>
                         <li>Position yourself in front of the camera with good lighting</li>
-                        <li>Click "Check Mood Now." to start a 5-second countdown</li>
-                        <li>Maintain a natural facial expression during the countdown</li>
+                        <li>Click "Check Mood Now" to open the camera</li>
+                        <li>Position your face in the frame and click "Capture"</li>
+                        <li>Maintain a natural facial expression when capturing</li>
                         <li>The AI will analyze your expression and record your mood</li>
                         <li>Your mood history will be updated on the chart below</li>
                     </ul>
@@ -266,6 +264,30 @@
             </div>
         </div>
     </footer>
+
+    <!-- Camera Modal for Facial Emotion Detection -->
+    <div id="camera-modal" class="camera-modal" aria-hidden="true" role="dialog" aria-labelledby="camera-modal-title">
+        <div class="camera-modal-content">
+            <div class="camera-modal-header">
+                <h3 id="camera-modal-title">Facial Mood Detection</h3>
+                <button type="button" id="close-camera-modal" class="close-modal-btn" aria-label="Close">&times;</button>
+            </div>
+            <div class="camera-modal-body">
+                <div class="video-container modal-video-container">
+                    <video id="video" autoplay playsinline muted></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+                <p class="camera-hint">Position your face in the frame with good lighting, then click Capture.</p>
+            </div>
+            <div class="camera-modal-actions">
+                <button type="button" id="modal-capture-btn" class="btn-primary" disabled>
+                    <i class="fas fa-camera"></i> Capture
+                </button>
+                <button type="button" id="modal-cancel-btn" class="btn-secondary">Cancel</button>
+            </div>
+            <div id="modal-status" class="modal-status"></div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/config.js"></script>

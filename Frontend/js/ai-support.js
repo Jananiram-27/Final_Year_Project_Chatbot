@@ -289,6 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
             recognition.maxAlternatives = 1;
 
             voiceInputBtn.addEventListener('click', () => {
+                if (isTyping) return;
                 if (isListening) {
                     stopListening();
                 } else {
@@ -330,29 +331,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 
-                // Start auto-send timer if there's text in the input
-                if (chatInput.value.trim().length > 0) {
-                    startAutoSendTimer();
-                }
+                updateSendButton();
             };
 
             recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
+                const transcript = event.results[0][0].transcript.trim();
+                if (!transcript) return;
+
                 const confidence = event.results[0][0].confidence;
                 lastInputMode = 'voice';
                 
-                // Add transcript to input field
-                if (chatInput.value.trim()) {
-                    chatInput.value += ' ' + transcript;
-                } else {
-                    chatInput.value = transcript;
-                }
+                chatInput.value = chatInput.value.trim()
+                    ? `${chatInput.value.trim()} ${transcript}`
+                    : transcript;
                 
                 updateCharCount();
                 updateSendButton();
                 autoResizeTextarea();
                 
                 showSuccess(`Voice captured: "${transcript}" (${Math.round(confidence * 100)}% confidence)`);
+                sendMessage();
             };
 
             recognition.onerror = (event) => {
@@ -432,26 +430,6 @@ document.addEventListener('DOMContentLoaded', function() {
             voiceInputBtn.style.opacity = '0.5';
             voiceInputBtn.title = 'Microphone access required - click to grant permission';
         }
-    }
-
-    // Function to start auto-send timer
-    function startAutoSendTimer() {
-        // Clear any existing timer
-        if (autoSendTimer) {
-            clearTimeout(autoSendTimer);
-        }
-        
-        // Show countdown
-        showInfo('Message will auto-send in 3 seconds... Click send to send now');
-        
-        // Set 3-second timer
-        autoSendTimer = setTimeout(() => {
-            if (chatInput.value.trim().length > 0) {
-                showInfo('Auto-sending message...');
-                sendMessage();
-            }
-            autoSendTimer = null;
-        }, 2000);
     }
 
     // Function to cancel auto-send timer
@@ -547,6 +525,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateSendButton() {
         const hasText = chatInput.value.trim().length > 0;
         sendBtn.disabled = !hasText || isTyping;
+        if (voiceInputBtn) {
+            voiceInputBtn.disabled = isTyping;
+        }
     }
     
     // Function to auto-resize textarea

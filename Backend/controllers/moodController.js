@@ -65,16 +65,19 @@ exports.getMoodHistory = async (req, res) => {
 };
 
 // =====================
-// Get most recent mood
+// Get most recent mood for the authenticated user
 // =====================
 exports.getRecentMood = async (req, res) => {
   try {
     const recentMood = await Mood.findOne({ user: req.user.id })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     if (!recentMood) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
+        data: null,
+        isRecent: false,
         message: 'No mood entries found'
       });
     }
@@ -104,33 +107,49 @@ exports.getRecentMood = async (req, res) => {
 // =====================
 exports.analyzeMood = async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.file || !req.file.buffer?.length) {
       return res.status(400).json({
         success: false,
-        message: 'No image file provided'
+        message: 'No image file provided. Send the capture as multipart field "image".'
       });
     }
 
-    // Prepare FormData to send to Flask ML service
     const formData = new FormData();
     formData.append('image', req.file.buffer, {
       filename: req.file.originalname || 'capture.jpg',
-      contentType: req.file.mimetype
+      contentType: req.file.mimetype || 'image/jpeg'
     });
 
-    const mlUrl = process.env.ML_SERVICE_URL || 'http://localhost:5055/predict_emotion';
-    const mlTimeoutMs = parseInt(process.env.ML_SERVICE_TIMEOUT_MS || '180000', 10);
+    const mlUrl = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5055/predict_emotion';
+    const mlTimeoutMs = parseInt(process.env.ML_SERVICE_TIMEOUT_MS || '30000', 10);
 
     let mlResponse;
     try {
       mlResponse = await axios.post(mlUrl, formData, {
-        headers: {
-          ...formData.getHeaders(),
-          'Content-Type': 'multipart/form-data'
-        },
-        timeout: mlTimeoutMs
+        headers: formData.getHeaders(),
+        timeout: mlTimeoutMs,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity
       });
     } catch (mlError) {
+      if (mlError.code === 'ECONNABORTED') {
+        console.error('ML service timed out:', mlUrl);
+        return res.status(504).json({
+          success: false,
+          message: 'Mood detection service timed out',
+          detail: `The ML service did not respond within ${mlTimeoutMs / 1000}s. Ensure it is running on port 5055.`
+        });
+      }
+
+      if (mlError.code === 'ECONNREFUSED' || mlError.code === 'ENOTFOUND') {
+        console.error('ML service unreachable:', mlUrl, mlError.message);
+        return res.status(503).json({
+          success: false,
+          message: 'Mood detection service unavailable',
+          detail: `Could not connect to ML service at ${mlUrl}`
+        });
+      }
+
       const upstreamDetail = mlError?.response?.data?.detail
         || mlError?.response?.data?.error
         || mlError?.response?.data?.message
@@ -196,6 +215,7 @@ exports.analyzeMood = async (req, res) => {
       data: {
         mood: moodValue,
         moodLabel,
+        confidence: mlResponse.data.confidence ?? null,
         id: mood._id,
         createdAt: mood.createdAt
       }

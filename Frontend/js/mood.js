@@ -23,8 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const captureBtn = document.getElementById('captureBtn');
-    const countdown = document.getElementById('countdown');
     const result = document.getElementById('result');
+    const cameraModal = document.getElementById('camera-modal');
+    const modalCaptureBtn = document.getElementById('modal-capture-btn');
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+    const closeCameraModalBtn = document.getElementById('close-camera-modal');
+    const modalStatus = document.getElementById('modal-status');
     const ctx = canvas.getContext('2d');
     
     // Set canvas dimensions
@@ -59,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // API Configuration - will be loaded from server
     let apiConfig = {
         backendApiUrl: 'http://localhost:5001', // Default fallback
-        mlServiceUrl:'https://soulspace-backend-46bh.onrender.com/api/mood/predict_emotion'
+        mlServiceUrl:'http://localhost:5000/api/mood/analyze'
 // (Replace with your actual route path) // Default fallback
     };
     
@@ -96,9 +100,22 @@ document.addEventListener('DOMContentLoaded', function() {
         saveManualMood(selectedMood.value, selectedMood.label, notes);
     });
     
-    // Capture mood with AI button click handler
-    captureBtn.addEventListener('click', function() {
-        startMoodCapture();
+    // Capture mood with AI button click handler — opens camera modal
+    captureBtn.addEventListener('click', openCameraModal);
+    modalCaptureBtn.addEventListener('click', captureMoodImage);
+    modalCancelBtn.addEventListener('click', closeCameraModal);
+    closeCameraModalBtn.addEventListener('click', closeCameraModal);
+
+    cameraModal.addEventListener('click', function(event) {
+        if (event.target === cameraModal) {
+            closeCameraModal();
+        }
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && cameraModal.classList.contains('active')) {
+            closeCameraModal();
+        }
     });
     
     // Function to initialize the page
@@ -516,125 +533,128 @@ document.addEventListener('DOMContentLoaded', function() {
         return await saveMoodData(value, label, notes, 'manual');
     }
     
-    // Function to start the mood capture process with AI
-    // Function to start the mood capture process with AI
-    async function startMoodCapture() {
+    function stopMediaStream() {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            mediaStream = null;
+        }
+        if (video) {
+            video.srcObject = null;
+        }
+    }
+
+    function setModalStatus(message, type) {
+        if (!modalStatus) return;
+        modalStatus.textContent = message || '';
+        modalStatus.className = 'modal-status' + (type ? ` ${type}` : '');
+    }
+
+    async function openCameraModal() {
         try {
             captureBtn.disabled = true;
-            result.innerHTML = '<div class="result-content">Preparing camera...</div>';
-            
+            setModalStatus('Preparing camera...', 'analyzing');
+            cameraModal.classList.add('active');
+            cameraModal.setAttribute('aria-hidden', 'false');
+            modalCaptureBtn.disabled = true;
+
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error("Your browser doesn't support camera access");
             }
 
-            mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: 640, height: 480 } 
+            stopMediaStream();
+
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
             });
-            
+
             video.srcObject = mediaStream;
-            video.style.transform = 'scaleX(-1)'; // Mirror view
-            
+
             await new Promise((resolve, reject) => {
                 video.onloadedmetadata = resolve;
-                setTimeout(() => reject(new Error("Video loading timed out")), 5000);
+                setTimeout(() => reject(new Error('Video loading timed out')), 5000);
             });
-            
+
             await video.play();
-            result.innerHTML = '<div class="result-content">Get ready for mood detection...</div>';
-            startCountdown();
-            
+            setModalStatus('Ready — click Capture when your face is in frame.');
+            modalCaptureBtn.disabled = false;
         } catch (error) {
             console.error('Error accessing camera:', error);
-            // KANDIPA UI LA RED COLOR ERROR KAATANUM CAMERA ILLANA
-            result.innerHTML = `
-                <div class="result-content" style="color: #e74c3c;">
-                    <span>⚠️ Cannot access camera: Please enable camera permissions.</span>
-                </div>
-            `;
-            result.style.backgroundColor = '#fdeded';
-            result.style.border = '2px solid #e74c3c';
+            setModalStatus('Cannot access camera. Please enable camera permissions.', 'error');
+            showError('Cannot access camera. Please enable camera permissions.');
+            closeCameraModal();
+        } finally {
             captureBtn.disabled = false;
         }
     }
-    
-    // Function to start the countdown
-    function startCountdown() {
-        let count = 3;
-        countdown.textContent = count;
-        countdown.style.display = 'flex';
-        
-        const countdownInterval = setInterval(() => {
-            count--;
-            countdown.textContent = count;
-            
-            if (count <= 0) {
-                clearInterval(countdownInterval);
-                countdown.style.display = 'none';
-                captureMoodImage();
-            }
-        }, 1000);
+
+    function closeCameraModal() {
+        stopMediaStream();
+        cameraModal.classList.remove('active');
+        cameraModal.setAttribute('aria-hidden', 'true');
+        setModalStatus('');
+        modalCaptureBtn.disabled = true;
+        modalCaptureBtn.innerHTML = '<i class="fas fa-camera"></i> Capture';
     }
-    
-    // Function to capture the mood image
-// Function to capture the mood image
+
+    function showDetectedMood(moodValue, moodLabel) {
+        const emoji = moodEmojis[moodLabel] || '🤔';
+        result.innerHTML = `
+            <div class="result-content">
+                <span class="mood-emoji" style="font-size:2.5rem;display:block;margin-bottom:8px;">${emoji}</span>
+                <span>You seem to be feeling <strong>${moodLabel}</strong></span>
+            </div>
+        `;
+        result.style.backgroundColor = '#d1fae5';
+        result.style.border = '2px solid #10b981';
+        result.style.color = '#047857';
+        result.style.borderRadius = '12px';
+        result.style.boxShadow = '0 4px 6px -1px rgba(16, 185, 129, 0.1)';
+    }
+
+    function showDetectionError(userMessage) {
+        result.innerHTML = `
+            <div class="result-content" style="color: #e74c3c;">
+                <span>⚠️ Detection Failed: ${userMessage}</span>
+            </div>
+        `;
+        result.style.backgroundColor = '#fdeded';
+        result.style.border = '2px solid #e74c3c';
+        result.style.borderRadius = '12px';
+        result.style.color = '#e74c3c';
+    }
+
     function captureMoodImage() {
         try {
-            // PUDHU CODE: Check if camera is actually playing and providing frames
             if (!video.srcObject || video.videoWidth === 0 || video.videoHeight === 0) {
-                result.innerHTML = `
-                    <div class="result-content" style="color: #e74c3c;">
-                        <span>⚠️ Camera on aagala! Please enable your camera and try again.</span>
-                    </div>
-                `;
-                result.style.backgroundColor = '#fdeded';
-                result.style.border = '2px solid #e74c3c';
-                captureBtn.disabled = false;
-                
-                // Stop whatever stream is there
-                if (mediaStream) {
-                    mediaStream.getTracks().forEach(track => track.stop());
-                }
-                return; // Stop execution here
+                setModalStatus('Camera is not ready. Please try again.', 'error');
+                showDetectionError('Camera is not ready. Please try again.');
+                closeCameraModal();
+                return;
             }
 
-            // Draw video to canvas for capture
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // PUDHU CODE: Check if the captured image is completely black (camera blocked)
+
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
             let isAllBlack = true;
             for (let i = 0; i < imageData.length; i += 4) {
-                if (imageData[i] > 10 || imageData[i+1] > 10 || imageData[i+2] > 10) {
+                if (imageData[i] > 10 || imageData[i + 1] > 10 || imageData[i + 2] > 10) {
                     isAllBlack = false;
                     break;
                 }
             }
-            
+
             if (isAllBlack) {
-                result.innerHTML = `
-                    <div class="result-content" style="color: #e74c3c;">
-                        <span>⚠️ Image romba dark ah iruku. Camera cover aagi irukka nu check pannunga.</span>
-                    </div>
-                `;
-                result.style.backgroundColor = '#fdeded';
-                result.style.border = '2px solid #e74c3c';
-                captureBtn.disabled = false;
-                if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+                setModalStatus('Image is too dark. Check your camera and lighting.', 'error');
+                showDetectionError('Image is too dark. Check your camera and lighting.');
                 return;
             }
 
-            console.log('Image captured from camera to canvas');
-            
-            // Stop webcam stream
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                video.srcObject = null;
-            }
-            
-            // Show analyzing message
-            result.innerHTML = '<div class="result-content">Analyzing your mood...</div>';
-            
-            // Convert canvas to blob and send to server
+            modalCaptureBtn.disabled = true;
+            modalCaptureBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+            setModalStatus('Analyzing your facial expression...', 'analyzing');
+
             canvas.toBlob(blob => {
                 const formData = new FormData();
                 const file = new File([blob], 'mood-capture.jpg', {
@@ -642,28 +662,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     lastModified: Date.now()
                 });
                 formData.append('image', file);
-                
                 analyzeMoodImage(formData);
             }, 'image/jpeg', 0.9);
-            
         } catch (error) {
             console.error('Error in captureMoodImage:', error);
-            result.innerHTML = `
-                <div class="result-content">
-                    <span>Error capturing image: ${error.message}. Please try again.</span>
-                </div>
-            `;
-            result.style.backgroundColor = '#fdeded';
-            captureBtn.disabled = false;
+            setModalStatus(`Error: ${error.message}`, 'error');
+            showDetectionError(error.message);
+            modalCaptureBtn.disabled = false;
+            modalCaptureBtn.innerHTML = '<i class="fas fa-camera"></i> Capture';
         }
     }
     
-    // Analyze captured image through Node backend proxy.
     async function analyzeMoodImage(formData) {
         try {
             const apiUrl = `${apiConfig.backendApiUrl}/api/mood/analyze`;
             console.log('Sending image to backend mood analyze API:', apiUrl);
-            
+
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -671,9 +685,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: formData
             });
-            
+
             const data = await response.json().catch(() => ({}));
-            
+
             if (!response.ok) {
                 const errorMessage =
                     data?.detail ||
@@ -682,27 +696,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     `Server error: ${response.status}`;
                 throw new Error(errorMessage);
             }
-            
+
             const payload = data?.data || data;
             if (payload && payload.mood !== undefined && payload.moodLabel) {
                 const moodValue = payload.mood;
                 const moodLabel = payload.moodLabel;
-                const emoji = moodEmojis[moodLabel] || '🤔';
 
-                result.innerHTML = `
-                    <div class="result-content">
-                        <span class="mood-emoji">${emoji}</span>
-                        <span>You seem to be feeling <strong>${moodLabel}</strong></span>
-                    </div>
-                `;
-                result.style.backgroundColor = '#d1fae5';
-                result.style.border = '2px solid #10b981';
-                result.style.color = '#047857';
-                result.style.borderRadius = '12px';
-                result.style.boxShadow = '0 4px 6px -1px rgba(16, 185, 129, 0.1)';
+                closeCameraModal();
+                showDetectedMood(moodValue, moodLabel);
+                showSuccess(`Your mood has been detected as ${moodLabel}!`);
 
                 await loadMoodHistory();
                 updateMoodTrackerButton({ value: moodValue, label: moodLabel });
+                await loadRecommendations(moodLabel);
             } else {
                 throw new Error('Failed to detect mood from image');
             }
@@ -721,16 +727,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 userMessage = 'Captured image was invalid. Please retry the capture.';
             }
 
-            result.innerHTML = `
-                <div class="result-content" style="color: #e74c3c;">
-                    <span>⚠️ Detection Failed: ${userMessage}</span>
-                </div>
-            `;
-            result.style.backgroundColor = '#fdeded';
-            result.style.border = '2px solid #e74c3c';
-            result.style.borderRadius = '12px';
+            setModalStatus(userMessage, 'error');
+            showDetectionError(userMessage);
+            showError(userMessage);
         } finally {
-            captureBtn.disabled = false;
+            modalCaptureBtn.disabled = false;
+            modalCaptureBtn.innerHTML = '<i class="fas fa-camera"></i> Capture';
         }
     }
     // Helper: get color for each mood

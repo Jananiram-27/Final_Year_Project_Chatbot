@@ -39,17 +39,27 @@ router.use(protect);
 // Mood tracking routes
 // =====================
 
+// Get most recent mood (must be registered before GET /)
+router.get('/recent', getRecentMood);
+
+// Analyze uploaded image for mood using ML service
+router.post('/analyze', (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      return res.status(err.status || 400).json({
+        success: false,
+        message: err.message || 'Image upload failed'
+      });
+    }
+    next();
+  });
+}, analyzeMood);
+
 // Save a manual mood entry
 router.post('/', saveMood);
 
 // Get mood history (paginated)
 router.get('/', getMoodHistory);
-
-// Get most recent mood
-router.get('/recent', getRecentMood);
-
-// Analyze uploaded image for mood using ML service
-router.post('/analyze', upload.single('image'), analyzeMood);
 
 // =====================
 // Export the router
